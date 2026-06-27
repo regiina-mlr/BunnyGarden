@@ -55,6 +55,11 @@ while True:
     if tasten[pygame.K_s]: hase_pos.y += 5
     if tasten[pygame.K_a]: hase_pos.x -= 5
     if tasten[pygame.K_d]: hase_pos.x += 5
+    # Pfeiltasten
+    if tasten[pygame.K_UP]: hase_pos.y -= 5
+    if tasten[pygame.K_DOWN]: hase_pos.y += 5
+    if tasten[pygame.K_LEFT]: hase_pos.x -= 5
+    if tasten[pygame.K_RIGHT]: hase_pos.x += 5
 
     # --- 3.Logik ---
     # Karotten wachsen lassen & Ernten
