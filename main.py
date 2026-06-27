@@ -24,6 +24,10 @@ hase_pos = pygame.Rect(400, 300, 50, 50)
 garten = pygame.Rect(100, 100, 300, 200)
 shop = pygame.Rect(600, 100, 120, 120)
 
+# --- Tastenbelegung ---
+pflanz_taste = pygame.K_f
+shop_taste = pygame.K_e
+
 geld = 0
 vorrat = 0
 pflanzen_timer = 0
@@ -38,7 +42,7 @@ while True:
 
     # Pflanzen mit Taste F
     tasten = pygame.key.get_pressed()
-    if tasten[pygame.K_f] and pflanzen_timer == 0:
+    if tasten[pflanz_taste] and pflanzen_timer == 0:
         #Prüfe ob Hase im Garten
         if hase_pos.colliderect(garten):
             #An Position von Hase pflanzen
@@ -73,7 +77,7 @@ while True:
             karotten_liste.remove(k)
 
     # Verkaufen im Shop (E drücken)
-    if hase_pos.colliderect(shop) and tasten[pygame.K_e]:
+    if hase_pos.colliderect(shop) and tasten[shop_taste]:
         geld += vorrat * 5
         vorrat = 0
 
@@ -100,8 +104,8 @@ while True:
     # UI Text (Zwei Zeilen)
     geld_anzeige = font.render(f"Money: {geld}", True, (255, 255, 255))
     vorrat_anzeige = font.render(f"Carrots: {vorrat}", True, (255, 255, 255))
-    hilfe_anzeige  = font.render("F: plant", True, (255, 255, 0))
-    hilfe_anzeige2 = font.render("E: open shop", True, (0, 255, 255))
+    hilfe_anzeige  = font.render(f"{chr(pflanz_taste)}: plant", True, (255, 255, 0))
+    hilfe_anzeige2 = font.render(f"{chr(shop_taste)}: open shop", True, (0, 255, 255))
     screen.blit(geld_anzeige, (20, 20))
     screen.blit(vorrat_anzeige, (20, 50))
     screen.blit(hilfe_anzeige, (20, 80))
