@@ -3,9 +3,13 @@ import sys
 
 # --- Initialisierung ---
 pygame.init()
-screen = pygame.display.set_mode((800, 600))
+SCREEN_WIDTH = 800
+SCREEN_HEIGHT = 600
+screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
 clock = pygame.time.Clock()
 font = pygame.font.SysFont("monospace", 24, bold=True)
+BORDER_X = 1500
+BORDER_Y = 1000
 
 # --- Bilder laden ---
 hase_img = pygame.image.load('hase.jpg')
@@ -20,9 +24,9 @@ karotte_klein = pygame.image.load('keimling.jpg')
 karotte_klein = pygame.transform.scale(karotte_klein, (30, 30))
 
 # --- Variablen ---
-hase_pos = pygame.Rect(400, 300, 50, 50)
-garten = pygame.Rect(100, 100, 300, 200)
-shop = pygame.Rect(600, 100, 120, 120)
+hase_pos = pygame.Rect(700, 500, 50, 50)
+garten = pygame.Rect(600, 400, 300, 200)
+shop = pygame.Rect(1000, 200, 120, 120)
 
 # --- Tastenbelegung ---
 pflanz_taste = pygame.K_f
@@ -32,6 +36,17 @@ geld = 0
 vorrat = 0
 pflanzen_timer = 0
 karotten_liste = [] #Hier werden die Positionen gespeichert
+kamera_x = 0
+kamera_y = 0
+deadzone = pygame.Rect(300, 225, 200, 150)
+
+# --- Raster erstellen ---
+slots = []
+for reihe in range(3):
+    for spalte in range(4):
+        x = garten.x + 30 + (spalte * 70)
+        y = garten.y + 20 + (reihe * 65)
+        slots.append({"rect": pygame.Rect(x, y, 30, 30), "belegt": False})
 
 while True:
     # --- 1.Events (Tastatur / Maus) ---
@@ -40,18 +55,16 @@ while True:
             pygame.quit()
             sys.exit()
 
-    # Pflanzen mit Taste F
+    # Pflanzen mit Taste F auf Raster
     tasten = pygame.key.get_pressed()
-    if tasten[pflanz_taste] and pflanzen_timer == 0:
-        #Prüfe ob Hase im Garten
-        if hase_pos.colliderect(garten):
-            #An Position von Hase pflanzen
-            neue_karotte = {"rect": pygame.Rect(hase_pos.x +10, hase_pos.y +10, 30, 30), "wachstum": 0}
-
-            #Cool-Down
-            if len(karotten_liste) < 20:
+    if tasten[pygame.K_f] and pflanzen_timer == 0:
+        for s in slots:
+            if hase_pos.colliderect(s["rect"]) and not s["belegt"]:
+                neue_karotte = {"rect": s["rect"].copy(), "wachstum": 0, "slot_idx": slots.index(s)}
                 karotten_liste.append(neue_karotte)
-                pflanzen_timer = 15 #Wartezeit von 15 Frames
+                s["belegt"] = True
+                pflanzen_timer = 20 #Wartezeit von 20 Frames
+                break
 
     # --- 2.Steuerung (WASD) ---
     tasten = pygame.key.get_pressed()
@@ -64,6 +77,31 @@ while True:
     if tasten[pygame.K_DOWN]: hase_pos.y += 5
     if tasten[pygame.K_LEFT]: hase_pos.x -= 5
     if tasten[pygame.K_RIGHT]: hase_pos.x += 5
+    # Kamera-Logik
+    if hase_pos.x -kamera_x > deadzone.right:
+        kamera_x = hase_pos.x -deadzone.right
+
+    if hase_pos.x -kamera_x < deadzone.left:
+        kamera_x = hase_pos.x -deadzone.left
+
+    if hase_pos.y -kamera_y > deadzone.bottom:
+        kamera_y = hase_pos.y -deadzone.bottom
+
+    if hase_pos.y -kamera_y < deadzone.top:
+        kamera_y = hase_pos.y -deadzone.top
+
+    if kamera_x < 0: kamera_x = 0
+    if kamera_y < 0: kamera_y = 0
+
+    if kamera_x > BORDER_X + hase_img.get_width() - SCREEN_WIDTH : kamera_x = BORDER_X + hase_img.get_width() - SCREEN_WIDTH
+    if kamera_y > BORDER_Y +hase_img.get_height() - SCREEN_HEIGHT: kamera_y = BORDER_Y +hase_img.get_height() - SCREEN_HEIGHT
+
+
+    if hase_pos.x < 0: hase_pos.x = 0
+    if hase_pos.y < 0: hase_pos.y = 0
+
+    if hase_pos.x > BORDER_X: hase_pos.x = BORDER_X
+    if hase_pos.y > BORDER_Y: hase_pos.y = BORDER_Y
 
     # --- 3.Logik ---
     # Karotten wachsen lassen & Ernten
@@ -74,6 +112,7 @@ while True:
         # Ernten: Wenn Hase die Karotte berührt und reif ist
         if hase_pos.colliderect(k["rect"]) and k["wachstum"] >= 100:
             vorrat += 1
+            slots[k["slot_idx"]]["belegt"] = False
             karotten_liste.remove(k)
 
     # Verkaufen im Shop (E drücken)
@@ -83,23 +122,33 @@ while True:
 
     # --- 4. Zeichnen ---
     screen.fill((100, 180, 100)) #Gras
-    pygame.draw.rect(screen, (139, 69, 19), garten) #Erde
-    pygame.draw.rect(screen, (200, 200, 0), shop) #Shop-Hütte
+    pygame.draw.rect(screen, (139, 69, 19), (garten.x-kamera_x,garten.y-kamera_y, garten.width, garten.height)) #Erde
+    pygame.draw.rect(screen, (200, 200, 0), (shop.x-kamera_x, shop.y-kamera_y, shop.width, shop.height)) #Shop-Hütte
+
+    # --- NEU: Plätze im Garten markieren
+    for s in slots:
+        if not s["belegt"]:
+            p_x = s["rect"].centerx - kamera_x
+            p_y = s["rect"].centery - kamera_y
+            pygame.draw.circle(screen, (80, 50, 30), (p_x, p_y), 4)
 
     # Runterzählen des Cooldowns fürs pflanzen
     if pflanzen_timer > 0: pflanzen_timer -= 1
 
-    # Karotten  je nach Status zeichnen
+    # Karotten je nach Status zeichnen
     for k in karotten_liste:
+        k_x = k["rect"].x - kamera_x
+        k_y = k["rect"].y - kamera_y
         if k["wachstum"] >= 100:
             #Reife Karotte
-            screen.blit(karotte_gross, (k["rect"].x, k["rect"].y))
+            screen.blit(karotte_gross, (k_x, k_y))
         else:
             #Solange sie noch wächst
-            screen.blit(karotte_klein, (k["rect"].x, k["rect"].y))
+            screen.blit(karotte_klein, (k_x, k_y))
 
     # Hase zeichnen
-    screen.blit(hase_img, (hase_pos.x, hase_pos.y))
+    screen.blit(hase_img, (hase_pos.x-kamera_x, hase_pos.y-kamera_y))
+    #pygame.draw.rect(screen, (255, 0, 0), (hase_pos.x-kamera_x, hase_pos.y-kamera_y, 10, 10))
 
     # UI Text (Zwei Zeilen)
     geld_anzeige = font.render(f"Money: {geld}", True, (255, 255, 255))
@@ -110,6 +159,9 @@ while True:
     screen.blit(vorrat_anzeige, (20, 50))
     screen.blit(hilfe_anzeige, (20, 80))
     screen.blit(hilfe_anzeige2, (20, 110))
+
+    cords_anzeige = font.render(f"Cords: {hase_pos.x},{hase_pos.y}", True, (255, 255, 255))
+    screen.blit(cords_anzeige, (SCREEN_WIDTH -250, 20))
 
     pygame.display.flip()
     clock.tick(60)
